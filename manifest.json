@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "notebooks",
+  "version": "1.0",
+  "description": "Fetches data from external server without content script",
+    "permissions": ["alarms", "tabs", "notifications"],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "@addon-example"
+    }
+  },
+
+  "host_permissions": [
+      "https://bactra.org/notebooks/"
+  ],
+  "background": {
+        "page": "background.xhtml"
+  },
+
+  "content_scripts": [{
+    "matches": ["https://bactra.org/notebooks/"],
+    "css": ["ui/notebooks.css"],  
+    "js": ["ui/notebooks.js"],
+    "run_at": "document_end"
+  }],
+    
+  "action": {
+    "default_icon": {
+      "16": "icons/brief-icon-16.png",
+      "32": "icons/brief-icon-32.png",
+      "64": "icons/brief-icon-64.png"
+    },
+    "default_title": "Fetch Data"
+  }
+}
