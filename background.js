@@ -16,9 +16,10 @@ let _init_promise = null;
 function initialize() {
     if (_init_promise) return _init_promise;
     _init_promise = Database.init()
-	.then(() => {
-	    browser.alarms.create('reparse', { periodInMinutes: 1440 });
-	    update();})
+	.then(async () => {
+	    const alarm = await browser.alarms.get('reparse');
+	    if (!alarm) browser.alarms.create('reparse', { periodInMinutes: 1440 });
+	    await update();})
 	.catch (error => {
 	    console.error(error);
 	    _init_promise = null;

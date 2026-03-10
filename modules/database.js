@@ -52,7 +52,7 @@ export const Database = {
 		const existing = existingMap.get(item.title);
 		if (!existing || item.updateDate > existing.updateDate) {
                     const readStatus = existing ? existing.readStatus : UNREAD;
-                    const putRequest = objectStore.put({...item, readStatus});
+					objectStore.put({...item, readStatus});
 		}});
 	}
 	return promise;
@@ -108,7 +108,7 @@ export const Database = {
 
 	const objectStore = transaction.objectStore(schema.name);
 	const getRequest = objectStore.get(id);
-	getRequest.onsuccess = (event) => objectStore.put({...getRequest.result, readStatus: mark});
+	getRequest.onsuccess = () => objectStore.put({...getRequest.result, readStatus: mark});
 
 	return promise;
     }

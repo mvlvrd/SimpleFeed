@@ -3,7 +3,7 @@
   "name": "notebooks",
   "version": "1.0",
   "description": "Fetches data from external server without content script",
-    "permissions": ["alarms", "tabs", "notifications"],
+  "permissions": ["alarms", "tabs", "notifications"],
 
   "browser_specific_settings": {
     "gecko": {
