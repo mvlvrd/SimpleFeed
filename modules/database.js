@@ -12,7 +12,7 @@ export const Database = {
     _db: undefined,
 
     async init(dbVersion = _dbVersion) {
-	if (this._db) return this._db;
+	if (this._db) return;
 
 	this._db = await new Promise((resolve, reject) => {
 	    const request = indexedDB.open(_dbName, dbVersion);
@@ -39,81 +39,77 @@ export const Database = {
 	const items = await fetchAndParse();
 
 	const transaction = this._db.transaction([schema.name], "readwrite");
-	transaction.onerror = (event) => console.error(`Update failed with error:${event.error}`);
+	const promise = new Promise((resolve, reject) => {
+	    transaction.onerror = (event) => reject(event.error);
+	    transaction.oncomplete = () => resolve();
+	});
 
 	const objectStore = transaction.objectStore(schema.name);
-
 	const getAllRequest = objectStore.getAll();
-	const existingItems = await new Promise((resolve, reject) => {
-	    getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-	    getAllRequest.onerror = () => reject(getAllRequest.error);		
-	});
-
-	const existingMap = new Map(existingItems.map(item => [item.title, item]));
-	const updateItem = ({title, updateDate, readStatus}) => {
-	    const existingItem = existingMap.get(title);
-	    return !existingItem || updateDate > existingItem.updateDate;
-	};
-
-	await Promise.all(items.map(async (item) => {
-            const existing = existingMap.get(item.id);
-            if (updateItem(item)) {
-                const readStatus = existing ? existing.readStatus : UNREAD;
-                return new Promise((resolve, reject) => {
+	getAllRequest.onsuccess = () => {
+	    const existingMap = new Map(getAllRequest.result.map(item => [item.title, item]));
+	    items.forEach(item => {
+		const existing = existingMap.get(item.title);
+		if (!existing || item.updateDate > existing.updateDate) {
+                    const readStatus = existing ? existing.readStatus : UNREAD;
                     const putRequest = objectStore.put({...item, readStatus});
-                    putRequest.onsuccess = () => {resolve()};
-                    putRequest.onerror = () => {console.log(item); reject(putRequest.error)};
-                });
-            }
-        }));
+		}});
+	}
+	return promise;
     },
-    
+
+    _readTransactionPromise(request) {
+	return new Promise((resolve, reject) => {
+	    request.onsuccess = () => resolve(request.result);
+	    request.onerror = () => reject(request.error);
+	});
+    },
+
     async countUnreadItems() {
 	const range = IDBKeyRange.only(UNREAD);
-	const index = this._db.transaction([schema.name]).objectStore(schema.name).index('readStatus');
-	return new Promise((resolve, reject) => {
-	    const countRequest = index.count(range);
-	    countRequest.onsuccess = () => resolve(countRequest.result);
-	    countRequest.onerror = () => reject(countRequest.error);
-	});
+	const transaction = this._db.transaction([schema.name]);
+	const countRequest = transaction.objectStore(schema.name).index('readStatus').count(range);
+	return this._readTransactionPromise(countRequest);
     },
 
     async fetchItems() {
-	console.log("fetching");
-	const getAllRequest = this._db.transaction([schema.name]).objectStore(schema.name).getAll();
-	return new Promise((resolve, reject) => {
-	    getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-	    getAllRequest.onerror = () => reject(getAllRequest.error);
-	});
+	const transaction = this._db.transaction([schema.name]);
+	const getAllRequest = transaction.objectStore(schema.name).getAll();
+	return this._readTransactionPromise(getAllRequest);
     },
 
     async updateAllStatus(mark) {
 	const transaction = this._db.transaction([schema.name], "readwrite");
-	transaction.onerror = (event) => console.error(`Update All Status failed with error:${event.error}`);
+	const promise = new Promise((resolve, reject) => {
+	    transaction.onerror = (event) => reject(event.error);
+	    transaction.oncomplete = () => resolve();
+	});
+
 	const objectStore = transaction.objectStore(schema.name);
 	objectStore.openCursor().onsuccess = (event) => {
 	    const cursor = event.target.result;
 	    if (cursor) {
-		const item = cursor.value;
-		const request = cursor.update({...item, readStatus: mark});
+		cursor.update({...cursor.value, readStatus: mark});
 		cursor.continue();
-	    }};
+	    }
+	};
+
+	return promise;
     },
 
     async updateStatus(mark, id) {
-	if (!id) {
-	    await this.updateAllStatus(mark);
-	    return;
-	}
+	if (!id) return this.updateAllStatus(mark);
 
 	const transaction = this._db.transaction([schema.name], "readwrite");
-	transaction.onerror = (event) => console.error(`Update Status failed with error:${event.error}`);
-	const objectStore = transaction.objectStore(schema.name);
+	const promise = new Promise((resolve, reject) => {
+	    transaction.onerror = (event) => reject(event.error);
+	    transaction.oncomplete = () => resolve();
+	});
 
+	const objectStore = transaction.objectStore(schema.name);
 	const getRequest = objectStore.get(id);
-	getRequest.onsuccess = () => {
-	    const item = getRequest.result;
-	    const putRequest = objectStore.put({...item, readStatus: mark});
-	}
+	getRequest.onsuccess = (event) => objectStore.put({...getRequest.result, readStatus: mark});
+
+	return promise;
     }
 }
