@@ -1,18 +1,18 @@
 {
   "manifest_version": 3,
   "name": "notebooks",
-  "version": "1.0",
+  "version": "1.2",
   "description": "Fetches data from external server without content script",
   "permissions": ["alarms", "tabs", "notifications"],
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "@addon-example"
+      "id": "@addon-example1"
     }
   },
 
   "host_permissions": [
-      "https://bactra.org/notebooks/"
+      "*://bactra.org/*"
   ],
   "background": {
         "page": "background.xhtml"
@@ -21,10 +21,15 @@
   "content_scripts": [{
     "matches": ["https://bactra.org/notebooks/"],
     "css": ["ui/notebooks.css"],  
-    "js": ["ui/notebooks.js"],
+    "js": ["config.js", "ui/content.js"],
+    "run_at": "document_end"
+    },{
+    "matches": ["https://bactra.org/weblog/"],
+    "css": ["ui/notebooks.css"],  
+    "js": ["config.js", "ui/content.js"],
     "run_at": "document_end"
   }],
-    
+
   "action": {
     "default_icon": {
       "16": "icons/brief-icon-16.png",
