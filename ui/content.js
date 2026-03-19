@@ -1,6 +1,6 @@
 const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
 const {dtListSelector, elementSelector, classNameCSS, getKey, putToolBar} = CONFIG[schemaName];
-const dtList = document.querySelectorAll(dtListSelector);
+const dtArray = Array.from(document.querySelectorAll(dtListSelector));
 
 const [UNREAD, READ] = [0, 1];
 const toggle = x => 1 - x;
@@ -27,38 +27,44 @@ function editPreamble() {
   document.getElementById("markAllUnreadBtn").addEventListener("click", (event) => { event.stopPropagation(); markRead(UNREAD) });
 }
 
-//TODO: Make it more efficient when looping for all items.
-function renderItem(dt, mark) {
+function renderItemReadPhase(dt, mark) {
   const keyElement = dt.querySelector(elementSelector);
   const key = keyElement.textContent;
   if (!dt.id) {dt.id = key};
   const isRead = (mark === undefined) ? ItemMap.get(key) : mark;
+  const btnId = `btn-${key}`
+  const btn = document.getElementById(btnId);
+  return {dt, keyElement, isRead, btnId, btn};
+}
 
-  const keyBoldClass = isRead ? " bold-read" : "";
-  const toggleBtnClass = isRead ? "toggle-btn" : "toggle-btn read";
-  const toggleBtnContent = isRead ? "◯" : "✔"; //isRead? "◯ Mark as unread": "✔ Mark as read";
-
-  keyElement.className = classNameCSS(keyBoldClass);
-
-  const btnID = `btn-${key}`;
-  let btn = document.getElementById(btnID);
+function renderItemWritePhase({dt, keyElement, isRead, btnId, btn}) {
+  keyElement.className = classNameCSS(isRead ? " bold-read" : "");
   if (!btn) {
-    btn = newElement("button", {id: btnID});
+    btn = newElement("button", {id: btnId});
     dt.append(btn);
   }
-  btn.className = toggleBtnClass;
-  btn.innerHTML = toggleBtnContent;
+  btn.className = isRead ? "toggle-btn" : "toggle-btn read";
+  btn.innerHTML = isRead ? "◯" : "✔"; //isRead? "◯ Mark as unread": "✔ Mark as read";
+}
+
+function renderItems(dts, mark) {
+  const readRes = [];
+  for (dt of dts) {
+    readRes.push(renderItemReadPhase(dt, mark));
+  }
+  for (obj of readRes) { renderItemWritePhase(obj) };
 }
 
 function markRead(mark, dt) {
-  const dts = dt? new Array(dt) : dtList;
+  const dts = dt? new Array(dt) : dtArray;
   const id = dt? dt.querySelector(elementSelector).textContent : undefined;
-  dts.forEach(dt => renderItem(dt, mark)); // This could be made async
+  renderItems(dts, mark);
   browser.runtime.sendMessage({content: "mark", mark:mark, id:id})
     .then(() => { dts.forEach(dt => {ItemMap.set(dt.id, mark);}) })
     .catch(error => {
       console.error(`Error marking: ${error}`);
-      dts.forEach(dt => renderItem(dt, toggle(mark)));});
+      renderItems(dts, toggle(mark));
+    })
 }
 
 async function refreshData() {
@@ -69,7 +75,7 @@ async function refreshData() {
 
 let ItemMap;
 (async () => {ItemMap = await refreshData();
-              dtList.forEach(dt => renderItem(dt));})();
+              renderItems(dtArray);})();
 editPreamble();
 
 document.body.addEventListener("click", (event) => {
