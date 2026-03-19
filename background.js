@@ -1,19 +1,22 @@
 import {Database} from "./modules/database.js";
 
+let unreadCounts;
+
 async function update() {
-    await Database.updateAll();
-    await updateBadge();
+  await Database.updateAll();
+  await updateBadge();
 }
 
 async function updateBadge() {
-    const n_unread = await Database.countAllUnreadItems();
-    if (n_unread.reduce((acc, val) => acc + val, 0) == 0) {
-        browser.action.setBadgeText({text: ""});
-        return;
-    }
-    const text = n_unread.map(n => n>0 ? n.toString() : "").join("/");
-    browser.action.setBadgeText({text: text});
-    browser.action.setBadgeBackgroundColor({color: "red"});
+  unreadCounts = await Database.countAllUnreadItems();
+  const n_counts = Object.values(unreadCounts);
+  if (n_counts.reduce((acc, val) => acc + val, 0) == 0) {
+    browser.action.setBadgeText({text: ""});
+    return;
+  }
+  const text = n_counts.map(n => n>0 ? "!" : "").join("/");
+  browser.action.setBadgeText({text: text});
+  browser.action.setBadgeBackgroundColor({color: "red"});
 }
 
 let _init_promise = null;
@@ -26,7 +29,7 @@ function initialize() {
       if (!alarm) browser.alarms.create("reparse", { periodInMinutes: 1440 });
       await update();})
     .catch(error => {
-      console.error(`Error initialziing: ${error}`);
+      console.error(`Error initialzing: ${error}`);
       _init_promise = null;
     });
   return _init_promise;
@@ -49,10 +52,9 @@ async function clickListener(url) {
 }
 
 browser.action.onClicked.addListener(async () => {
-    console.log("click-listened");
-    //TODO: Make it conditional on zero unread counts.
-    Object.values(CONFIG).forEach(
-        obj => clickListener(obj.url).catch(err => console.error(err)));
+  console.log("click-listened");
+  Object.entries(CONFIG)//.filter(([k,v]) => unreadCounts[k] > 0)
+    .forEach(([k, v]) => clickListener(v.url));
 });
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -80,15 +82,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
 });
 
-// browser.runtime.onInstalled.addListener(async (details) => {
-//     //TODO: Improve this.
-//     if (details.reason === "install") {
-//     await initialize();
-//     }
-// });
+browser.runtime.onInstalled.addListener(async (details) => {
+  await Database.delete();
+  await initialize();
+});
 
-// browser.runtime.onStartup.addListener(async () => {
-//     await initialize()
-// });
-
-await initialize();
+browser.runtime.onStartup.addListener(async () => {
+    await initialize()
+});

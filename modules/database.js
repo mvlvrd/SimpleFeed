@@ -7,8 +7,7 @@ const [UNREAD, READ] = [0, 1];
 
 const schemas = {1: {name:"notebooks", keyOptions:{keyPath: "title"}},
                  2: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
-		     {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"}
-		    ]};
+                     {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"}]};
 const schema = schemas[_dbVersion];
 
 export const Database = {
@@ -16,12 +15,11 @@ export const Database = {
 
   async init(dbVersion = _dbVersion) {
     if (this._db) return;
-
+    console.log("Initialize DB");
+    const request = indexedDB.open(_dbName, dbVersion);
     this._db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(_dbName, dbVersion);
       request.onupgradeneeded = (event) => {
-	//TODO: Check the logic here is robust.
-        console.log("Upgrade DB");
+        //TODO: Check the logic here is robust.
         const db = event.target.result;
         schema.forEach(({name, keyOptions, idx}) => {
           db.createObjectStore(name, keyOptions)
@@ -39,6 +37,14 @@ export const Database = {
     });
   },
 
+  async delete() {
+    const request = indexedDB.deleteDatabase(_dbName);
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  },
+
   async updateAll() {
     return Promise.allSettled(schema.map(x => this.update(x.name)));
   },
@@ -47,31 +53,22 @@ export const Database = {
     const items = await fetchAndParse(schemaName);
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = new Promise((resolve, reject) => {
-      transaction.onerror = (event) => reject(event.error);
-      transaction.oncomplete = () => resolve();
+      transaction.onerror = (event) => {console.error(event.error);reject(event.error);};
+      transaction.oncomplete = () => {resolve();};
     });
 
     const objectStore = transaction.objectStore(schemaName);
     const getAllRequest = objectStore.getAll();
 
-    //TODO Move this logic to the config.js file.
-    const updaters = {
-      "notebooks": () => {
-        const existingMap = new Map(getAllRequest.result.map(item => [item.title, item]));
-        items.forEach(item => {
-          const existing = existingMap.get(item.title);
-          if (!existing || item.updateDate > existing.updateDate) {
-            const readStatus = existing ? existing.readStatus : UNREAD;
-            objectStore.put({...item, readStatus});}});},
-      "weblog": () => {
-        const existingMap = new Map(getAllRequest.result.map(item => [item.updateDate, item]));
-        items.forEach(item => {
-          const existing = existingMap.get(item.updateDate);
-          if (!existing) {
-            objectStore.put({...item, readStatus: UNREAD});}});}
-    }
+    const getKey = CONFIG[schemaName].getKey;
+    const getUpdateStatus = CONFIG[schemaName].getUpdateStatus;
 
-    getAllRequest.onsuccess = updaters[schemaName];
+    getAllRequest.onsuccess = () => {
+      const existingMap = new Map(getAllRequest.result.map(item => [getKey(item), item]));
+      items.forEach(item => { const {needsUpdate, readStatus} = getUpdateStatus(item, existingMap);
+                              if (needsUpdate) { objectStore.put({...item, readStatus: readStatus}) };})
+    };
+    getAllRequest.onerror = () => console.error(getAllRequest.error);
     return promise;
   },
 
@@ -95,7 +92,8 @@ export const Database = {
     const transaction = this._db.transaction(allNames);
     const promises = allNames.map(schemaName =>
       this._readTransactionPromise(transaction.objectStore(schemaName).index("readStatus").count(range)));
-    return Promise.all(promises);
+    const values = await Promise.all(promises);
+    return Object.fromEntries(values.map((val, i) => [allNames[i], val]));
   },
 
   async fetchItems(schemaName) {

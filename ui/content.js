@@ -2,7 +2,6 @@ const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
 const {dtListSelector, elementSelector, classNameCSS, getKey, putToolBar} = CONFIG[schemaName];
 const dtArray = Array.from(document.querySelectorAll(dtListSelector));
 
-const [UNREAD, READ] = [0, 1];
 const toggle = x => 1 - x;
 
 const newElement = (element, obj) => Object.assign(document.createElement(element), obj);
@@ -32,7 +31,7 @@ function renderItemReadPhase(dt, mark) {
   const key = keyElement.textContent;
   if (!dt.id) {dt.id = key};
   const isRead = (mark === undefined) ? ItemMap.get(key) : mark;
-  const btnId = `btn-${key}`
+  const btnId = `btn-${key}`;
   const btn = document.getElementById(btnId);
   return {dt, keyElement, isRead, btnId, btn};
 }
@@ -49,10 +48,10 @@ function renderItemWritePhase({dt, keyElement, isRead, btnId, btn}) {
 
 function renderItems(dts, mark) {
   const readRes = [];
-  for (dt of dts) {
+  for (const dt of dts) {
     readRes.push(renderItemReadPhase(dt, mark));
-  }
-  for (obj of readRes) { renderItemWritePhase(obj) };
+  };
+  for (const obj of readRes) { renderItemWritePhase(obj) };
 }
 
 function markRead(mark, dt) {
