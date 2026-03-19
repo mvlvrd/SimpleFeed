@@ -20,6 +20,7 @@ export const Database = {
     this._db = await new Promise((resolve, reject) => {
       const request = indexedDB.open(_dbName, dbVersion);
       request.onupgradeneeded = (event) => {
+	//TODO: Check the logic here is robust.
         console.log("Upgrade DB");
         const db = event.target.result;
         schema.forEach(({name, keyOptions, idx}) => {
@@ -39,7 +40,7 @@ export const Database = {
   },
 
   async updateAll() {
-    Promise.allSettled(schema.map(x => this.update(x.name)));
+    return Promise.allSettled(schema.map(x => this.update(x.name)));
   },
 
   async update(schemaName) {
@@ -53,6 +54,7 @@ export const Database = {
     const objectStore = transaction.objectStore(schemaName);
     const getAllRequest = objectStore.getAll();
 
+    //TODO Move this logic to the config.js file.
     const updaters = {
       "notebooks": () => {
         const existingMap = new Map(getAllRequest.result.map(item => [item.title, item]));
@@ -66,8 +68,7 @@ export const Database = {
         items.forEach(item => {
           const existing = existingMap.get(item.updateDate);
           if (!existing) {
-            const readStatus = UNREAD;
-            objectStore.put({...item, readStatus});}});}
+            objectStore.put({...item, readStatus: UNREAD});}});}
     }
 
     getAllRequest.onsuccess = updaters[schemaName];
@@ -89,7 +90,11 @@ export const Database = {
   },
 
   async countAllUnreadItems() {
-    const promises = Array.from(this._db.objectStoreNames).map(schemaName => this.countUnreadItems(schemaName));
+    const range = IDBKeyRange.only(UNREAD);
+    const allNames = schema.map(db => db.name);
+    const transaction = this._db.transaction(allNames);
+    const promises = allNames.map(schemaName =>
+      this._readTransactionPromise(transaction.objectStore(schemaName).index("readStatus").count(range)));
     return Promise.all(promises);
   },
 

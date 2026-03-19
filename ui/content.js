@@ -27,13 +27,14 @@ function editPreamble() {
   document.getElementById("markAllUnreadBtn").addEventListener("click", (event) => { event.stopPropagation(); markRead(UNREAD) });
 }
 
+//TODO: Make it more efficient when looping for all items.
 function renderItem(dt, mark) {
   const keyElement = dt.querySelector(elementSelector);
   const key = keyElement.textContent;
-  dt.id = key;
+  if (!dt.id) {dt.id = key};
   const isRead = (mark === undefined) ? ItemMap.get(key) : mark;
 
-  const keyBoldClass = isRead ? "" : " bold-read";
+  const keyBoldClass = isRead ? " bold-read" : "";
   const toggleBtnClass = isRead ? "toggle-btn" : "toggle-btn read";
   const toggleBtnContent = isRead ? "◯" : "✔"; //isRead? "◯ Mark as unread": "✔ Mark as read";
 

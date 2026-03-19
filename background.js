@@ -19,17 +19,17 @@ async function updateBadge() {
 let _init_promise = null;
 
 function initialize() {
-    if (_init_promise) return _init_promise;
-    _init_promise = Database.init()
+  if (_init_promise) return _init_promise;
+  _init_promise = Database.init()
     .then(async () => {
-        const alarm = await browser.alarms.get("reparse");
-        if (!alarm) browser.alarms.create("reparse", { periodInMinutes: 1440 });
-        await update();})
+      const alarm = await browser.alarms.get("reparse");
+      if (!alarm) browser.alarms.create("reparse", { periodInMinutes: 1440 });
+      await update();})
     .catch(error => {
-        console.error(`Error initialziing: ${error}`);
-        _init_promise = null;
+      console.error(`Error initialziing: ${error}`);
+      _init_promise = null;
     });
-    return _init_promise;
+  return _init_promise;
 }
 
 browser.alarms.onAlarm.addListener((alarmInfo) => {
@@ -80,15 +80,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
 });
 
-browser.runtime.onInstalled.addListener(async (details) => {
-    //TODO: Improve this.
-    if (details.reason === "install") {
-    await initialize();
-    }
-});
+// browser.runtime.onInstalled.addListener(async (details) => {
+//     //TODO: Improve this.
+//     if (details.reason === "install") {
+//     await initialize();
+//     }
+// });
 
-browser.runtime.onStartup.addListener(async () => {
-    await initialize()
-});
+// browser.runtime.onStartup.addListener(async () => {
+//     await initialize()
+// });
 
 await initialize();
