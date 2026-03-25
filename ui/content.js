@@ -2,7 +2,7 @@ const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
 const {dtListSelector, elementSelector, classNameCSS, getKey, putToolBar} = CONFIG[schemaName];
 const dtArray = Array.from(document.querySelectorAll(dtListSelector));
 
-const toggle = x => 1 - x;
+const toggle = (x) => 1 - x;
 
 const newElement = (element, obj) => Object.assign(document.createElement(element), obj);
 
@@ -68,7 +68,7 @@ function markRead(mark, dt) {
 
 async function refreshData() {
   const message = await browser.runtime.sendMessage({content: "updateUI"});
-  if (message.error) throw new Error(message.error);
+  if (message.error) {console.error(`Error refreshing UI ${message.error}`);};
   return new Map(message.map(item => [getKey(item), item.readStatus]));
 }
 
