@@ -37,12 +37,12 @@ export const Database = {
     });
   },
 
-  async delete() {
-    const request = indexedDB.deleteDatabase(_dbName);
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+  async clear() {
+    const schemaNames = schema.map((item) => item.name);
+    const transaction = this._db.transaction(schemaNames, "readwrite");
+    const promise = this._transactionPromise(transaction);
+    schemaNames.forEach((name) => transaction.objectStore(name).clear());
+    return promise;
   },
 
   async updateAll() {
@@ -52,10 +52,7 @@ export const Database = {
   async update(schemaName) {
     const items = await fetchAndParse(schemaName);
     const transaction = this._db.transaction([schemaName], "readwrite");
-    const promise = new Promise((resolve, reject) => {
-      transaction.onerror = (event) => {console.error(event.error);reject(event.error);};
-      transaction.oncomplete = () => {resolve();};
-    });
+    const promise = this._transactionPromise(transaction);
 
     const objectStore = transaction.objectStore(schemaName);
     const getAllRequest = objectStore.getAll();
@@ -72,18 +69,18 @@ export const Database = {
     return promise;
   },
 
-  _readTransactionPromise(request) {
+  _readRequestPromise(request) {
     return new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
   },
 
-  async countUnreadItems(schemaName) {
-    const range = IDBKeyRange.only(UNREAD);
-    const transaction = this._db.transaction([schemaName]);
-    const countRequest = transaction.objectStore(schemaName).index("readStatus").count(range);
-    return this._readTransactionPromise(countRequest);
+  _transactionPromise(transaction) {
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => {resolve()};
+      transaction.onerror = (event) => {reject(event.error)};
+    });
   },
 
   async countAllUnreadItems() {
@@ -91,7 +88,7 @@ export const Database = {
     const allNames = schema.map(db => db.name);
     const transaction = this._db.transaction(allNames);
     const promises = allNames.map(schemaName =>
-      this._readTransactionPromise(transaction.objectStore(schemaName).index("readStatus").count(range)));
+      this._readRequestPromise(transaction.objectStore(schemaName).index("readStatus").count(range)));
     const values = await Promise.all(promises);
     return Object.fromEntries(values.map((val, i) => [allNames[i], val]));
   },
@@ -99,15 +96,12 @@ export const Database = {
   async fetchItems(schemaName) {
     const transaction = this._db.transaction([schemaName]);
     const getAllRequest = transaction.objectStore(schemaName).getAll();
-    return this._readTransactionPromise(getAllRequest);
+    return this._readRequestPromise(getAllRequest);
   },
 
   async updateAllStatus(schemaName, mark) {
     const transaction = this._db.transaction([schemaName], "readwrite");
-    const promise = new Promise((resolve, reject) => {
-      transaction.onerror = (event) => reject(event.error);
-      transaction.oncomplete = () => resolve();
-    });
+    const promise = this._transactionPromise(transaction);
 
     const objectStore = transaction.objectStore(schemaName);
     objectStore.openCursor().onsuccess = (event) => {
@@ -125,10 +119,7 @@ export const Database = {
     if (!id) {return this.updateAllStatus(schemaName, mark);}
 
     const transaction = this._db.transaction([schemaName], "readwrite");
-    const promise = new Promise((resolve, reject) => {
-      transaction.onerror = (event) => reject(event.error);
-      transaction.oncomplete = () => resolve();
-    });
+    const promise = this._transactionPromise(transaction);
 
     const objectStore = transaction.objectStore(schemaName);
     const getRequest = objectStore.get(id);
