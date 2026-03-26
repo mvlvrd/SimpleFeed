@@ -102,16 +102,14 @@ export const Database = {
   async updateAllStatus(schemaName, mark) {
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = this._transactionPromise(transaction);
-
     const objectStore = transaction.objectStore(schemaName);
-    objectStore.openCursor().onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        cursor.update({...cursor.value, readStatus: mark});
-        cursor.continue();
-      }
-    };
 
+    const getAllRequest = objectStore.getAll();
+    getAllRequest.onsuccess = () => {
+      getAllRequest.result.forEach(item => {
+        objectStore.put({...item, readStatus: mark});
+      });
+    };
     return promise;
   },
 
