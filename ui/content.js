@@ -1,5 +1,5 @@
 const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
-const {dtListSelector, elementSelector, classNameCSS, getKey, putToolBar} = CONFIG[schemaName];
+const {dtListSelector, elementSelector, classNameCSS, getKey} = CONFIG[schemaName];
 const dtArray = Array.from(document.querySelectorAll(dtListSelector));
 
 const newElement = (element, obj) => Object.assign(document.createElement(element), obj);

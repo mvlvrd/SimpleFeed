@@ -9,9 +9,6 @@ const CONFIG = {
     elementSelector: "h2",
     classNameCSS: (keyBoldClass) => `date${keyBoldClass}`,
     getKey: (item) => item.updateDate,
-    putToolBar: (toolBar) => {
-      document.querySelector("body").insertBefore(toolBar, document.querySelector("body > table"));
-    },
     getter: (dt) => {
       return {updateDate: dt.textContent.replace(/^\n|\n$/g, "")};
     },
@@ -28,9 +25,6 @@ const CONFIG = {
     elementSelector: "a",
     classNameCSS: (keyBoldClass) => `item-title${keyBoldClass}`,
     getKey: (item) => item.title,
-    putToolBar: (toolBar) => {
-      document.querySelector("body > div.text > div").append(toolBar);
-    },
     getter: (dt) => {
       const [titleElement, dateElement] = dt.children;
       return {title: titleElement.textContent,

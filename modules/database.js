@@ -3,8 +3,6 @@ import {fetchAndParse} from "../utils.js";
 const _dbName = "notebooksDB";
 const _dbVersion = 2;
 
-const [UNREAD, READ] = [0, 1];
-
 const schemas = {1: [{name:"notebooks", keyOptions:{keyPath: "title"}}],
                  2: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
                      {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"}]};
