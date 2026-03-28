@@ -2,8 +2,6 @@ const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
 const {dtListSelector, elementSelector, classNameCSS, getKey, putToolBar} = CONFIG[schemaName];
 const dtArray = Array.from(document.querySelectorAll(dtListSelector));
 
-const toggle = (x) => 1 - x;
-
 const newElement = (element, obj) => Object.assign(document.createElement(element), obj);
 
 function renderItemReadPhase(dt, mark) {

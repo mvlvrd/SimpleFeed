@@ -5,7 +5,7 @@ const _dbVersion = 2;
 
 const [UNREAD, READ] = [0, 1];
 
-const schemas = {1: {name:"notebooks", keyOptions:{keyPath: "title"}},
+const schemas = {1: [{name:"notebooks", keyOptions:{keyPath: "title"}}],
                  2: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
                      {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"}]};
 const schema = schemas[_dbVersion];
@@ -51,15 +51,15 @@ export const Database = {
 
   async update(schemaName) {
     const items = await fetchAndParse(schemaName);
+
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = this._transactionPromise(transaction);
-
     const objectStore = transaction.objectStore(schemaName);
-    const getAllRequest = objectStore.getAll();
 
     const getKey = CONFIG[schemaName].getKey;
     const getUpdateStatus = CONFIG[schemaName].getUpdateStatus;
 
+    const getAllRequest = objectStore.getAll();
     getAllRequest.onsuccess = () => {
       const existingMap = new Map(getAllRequest.result.map(item => [getKey(item), item]));
       items.forEach(item => { const {needsUpdate, readStatus} = getUpdateStatus(item, existingMap);
@@ -104,7 +104,7 @@ export const Database = {
     const promise = this._transactionPromise(transaction);
     const objectStore = transaction.objectStore(schemaName);
 
-    const getAllRequest = objectStore.getAll();
+    const getAllRequest = objectStore.index("readStatus").getAll(toggle(mark));
     getAllRequest.onsuccess = () => {
       getAllRequest.result.forEach(item => {
         objectStore.put({...item, readStatus: mark});
@@ -118,13 +118,12 @@ export const Database = {
 
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = this._transactionPromise(transaction);
-
     const objectStore = transaction.objectStore(schemaName);
+
     const getRequest = objectStore.get(id);
     getRequest.onsuccess = () => {
       objectStore.put({...getRequest.result, readStatus: mark});
-    }
-
+    };
     return promise;
   }
 }

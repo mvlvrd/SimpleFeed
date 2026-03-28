@@ -1,5 +1,7 @@
 const [UNREAD, READ] = [0, 1];
 
+const toggle = (x) => 1 - x;
+
 const CONFIG = {
   "weblog": {
     url: "https://bactra.org/weblog/",
