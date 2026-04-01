@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "notebooks",
-  "version": "1.6",
+  "version": "1.7",
   "description": "Replaces RSS",
   "permissions": ["alarms", "menus", "notifications", "tabs"],
 
@@ -36,6 +36,7 @@
       "32": "icons/brief-icon-32.png",
       "64": "icons/brief-icon-64.png"
     },
-    "default_title": "Fetch Data"
+    "default_title": "Fetch Data",
+    "default_popup": "popup/settings.html"
   }
 }

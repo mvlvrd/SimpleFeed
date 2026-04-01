@@ -1,8 +1,23 @@
 import {Database} from "./modules/database.js";
+const schemas = Object.values(CONFIG);
+
+const storage = window.localStorage;
+function getPeriod() {
+  const res = storage.getItem("periodInMinutes");
+  if (!res) {
+    setPeriod(1440);
+    return 1440;
+  }
+  return parseInt(res);
+}
+
+function setPeriod(period) {
+  storage.setItem("periodInMinutes", period);
+}
 
 async function update() {
   await Database.updateAll();
-  await updateBadge();
+  await updateUI();
 }
 
 async function updateBadge() {
@@ -17,6 +32,16 @@ async function updateBadge() {
   browser.action.setBadgeBackgroundColor({color: "red"});
 }
 
+async function updateAllStatus(schemaName, mark) {
+  console.log(schemaName, mark);
+  try {
+    await Database.updateAllStatus(schemaName, mark);
+    updateUI(schemaName); //Is it ok to not await on this?
+  } catch(e) {
+    console.error(`Error marking all as read for ${schemaName}: ${e}`);
+  }
+}
+
 let _init_promise = null;
 
 function initialize() {
@@ -24,7 +49,7 @@ function initialize() {
   _init_promise = Database.init()
     .then(async () => {
       const p1 = browser.alarms.get("reparse")
-          .then((alarm) => {if (!alarm) { browser.alarms.create("reparse", { periodInMinutes: 1440 }); }});
+            .then((alarm) => {if (!alarm) { browser.alarms.create("reparse", { periodInMinutes: getPeriod() }); }});
       const p2 = update();
       await Promise.all([p1, p2]);
     })
@@ -36,7 +61,7 @@ function initialize() {
 }
 
 async function getTabs(schemaName) {
-  const urls = schemaName? [CONFIG[schemaName].url] : Object.values(CONFIG).map((v) => v.url);
+  const urls = schemaName? [CONFIG[schemaName].url] : schemas.map((v) => v.url);
   const tabs = await Promise.all(urls.map((url) => browser.tabs.query({url})));
   return tabs.flat();
 }
@@ -45,7 +70,7 @@ async function updateUI(schemaName) {
   updateBadge();
   //TODO: Can this be made in parallel for all tabs?
   const tabs = await getTabs(schemaName);
-  tabs.forEach((tabx) => { browser.tabs.sendMessage(tabx.id, {content: "db Updated"}); });
+  tabs.forEach((tabx) => { browser.tabs.sendMessage(tabx.id, {content: "db Updated"})});
 }
 
 async function reset() {
@@ -53,7 +78,6 @@ async function reset() {
   _init_promise = null;
   try {
     await Database.clear();
-    updateUI();
   } catch (e) {
     console.error(`Error resetting: ${e}`);
   } finally {
@@ -67,7 +91,6 @@ browser.alarms.onAlarm.addListener((alarmInfo) => {
 });
 
 async function openURL(url) {
-  await initialize();
   const tabs = await browser.tabs.query({url});
   if (tabs.length > 0) {
     browser.tabs.update(tabs[0].id, {active:true});
@@ -77,18 +100,33 @@ async function openURL(url) {
   }
 }
 
-browser.action.onClicked.addListener(async () => {
-  console.log("click-listened");
-  await initialize();
-  Object.values(CONFIG)
-    .forEach((v) => openURL(v.url).catch((e) => console.error(`Error opening URL: ${e}`)));
-});
-
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const schemaName = (new URL(sender.url)).pathname.replace(/^\/+|\/+$/g, "");
+  const schemaName = message.schemaName;
+  console.log(`Message listened: ${message.content}`);
   initialize()
     .then(() => {
       switch (message.content) {
+      case "reset":
+        reset()
+          .then(() => sendResponse({success: true}));
+        break;
+      case "MarkAll":
+        updateAllStatus(schemaName, message.mark)
+          .then(() => sendResponse({success: true}));
+        break;
+      case "openURL":
+        schemas.forEach((v) => openURL(v.url));
+        sendResponse({success: true});
+        break;
+      case "setAlarmPeriod":
+        setPeriod(message.minutes);
+        browser.alarms.clear("reparse")
+          .then(() => browser.alarms.create("reparse", { periodInMinutes: message.minutes }))
+          .then(() => sendResponse({success: true}));
+        break;
+      case "getAlarmPeriod":
+        sendResponse({alarmPeriod: getPeriod()});
+        break;
       case "updateUI":
         console.log("updateUI-listened");
         Database.fetchItems(schemaName)
@@ -111,75 +149,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 browser.runtime.onInstalled.addListener(async () => {
-  browser.menus.create({
-    id: "contextReset",
-    title: "Reset",
-    contexts: ["action"]
-  });
-
-  const schemaNames = Object.keys(CONFIG);
-  schemaNames.forEach((schemaName) => {
-    browser.menus.create({
-      id: `Mark-${schemaName}`,
-      title: `Mark ${schemaName}`,
-      type: "separator",
-      contexts: ["action"]
-    });
-    browser.menus.create({
-      id: `MarkRead-${schemaName}`,
-      parentId: `Mark-${schemaName}`,
-      title: `Mark ${schemaName} as read`,
-      contexts: ["action"]
-    });
-    browser.menus.create({
-      id: `MarkUnread-${schemaName}`,
-      parentId: `Mark-${schemaName}`,
-      title: `Mark ${schemaName} as unread`,
-      contexts: ["action"]
-    });
-  });
-  
-  async function updateAllStatus(schemaName, mark) {
-    try {
-      await Database.updateAllStatus(schemaName, mark);
-      updateUI(schemaName);
-    } catch(e) {
-      console.error(`Error marking all as read for ${schemaName}: ${e}`);
-    }
-  }
-
-  function contextMenuActions({menuItemId}) {
-    const [action, schemaName] = menuItemId.split("-");
-    switch (action) {
-    case "Mark":
-      return;
-      break;
-    case "contextReset":
-      console.log("Reset");
-      reset();
-      break;
-    case "MarkRead":
-      console.log("Mark all read");
-      updateAllStatus(schemaName, READ);
-      break;
-    case "MarkUnread":
-      console.log("Mark all unread");
-      updateAllStatus(schemaName, UNREAD);
-      break;
-    default:
-      throw new Error(`Unknown context menu Item ID: ${menuItemId}`);
-    }
-  }
-
   await initialize();
-  await update();
-
-  browser.menus.onClicked.addListener((info) => {
-    console.log("Menu click listened");
-    contextMenuActions(info);})
+  setPeriod(1440);
 });
 
-browser.runtime.onStartup.addListener(async () => {
-  await initialize();
-  await update();
-});
+await initialize();

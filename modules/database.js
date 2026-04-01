@@ -98,6 +98,11 @@ export const Database = {
   },
 
   async updateAllStatus(schemaName, mark) {
+    if (!schemaName) {
+      const promises = schema.map((obj) => this.updateAllStatus(obj.name, mark));
+      return Promise.all(promises);
+    }
+
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = this._transactionPromise(transaction);
     const objectStore = transaction.objectStore(schemaName);

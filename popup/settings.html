@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <button id="resetBtn">🔄 Reset All Data</button>
+  
+  <div class="section">
+    <button id="markAllReadBtn">✅ Mark All as Read</button>
+    <button id="markAllUnreadBtn">❌ Mark All as Unread</button>
+    <div id="schemaButton">
+      <select id="schemas">
+      </select>
+    </div>
+  </div>
+
+  <div class="section">
+    <button id="openAllUrlsBtn">🌐 Open All URLs</button>
+  </div>
+
+  <div class="section">
+    <label>⏰ Alarm Period (minutes):</label>
+    <input type="number" id="alarmMinutes" min="1" step="1">
+    <button id="setAlarmBtn">Set Alarm Period</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script src="../config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

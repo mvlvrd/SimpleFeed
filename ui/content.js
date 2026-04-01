@@ -37,7 +37,7 @@ function markRead(mark, dt) {
   const dts = dt? [dt] : dtArray;
   const id = dt? dt.querySelector(elementSelector).textContent : undefined;
   renderItems(dts, mark);
-  browser.runtime.sendMessage({content: "mark", mark:mark, id:id})
+  browser.runtime.sendMessage({content: "mark", schemaName, mark, id})
     .then(() => { dts.forEach(dt => {ItemMap.set(dt.id, mark);}) })
     .catch(error => {
       console.error(`Error marking: ${error}`);
@@ -48,7 +48,7 @@ function markRead(mark, dt) {
 let ItemMap;
 
 async function refreshAndRender() {
-  const message = await browser.runtime.sendMessage({content: "updateUI"});
+  const message = await browser.runtime.sendMessage({content: "updateUI", schemaName});
   if (message.error) {
     console.error(`Error refreshing UI ${message.error}`);
     return;
