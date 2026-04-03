@@ -18,7 +18,7 @@ function renderItemWritePhase({dt, keyElement, isRead, btnId, btn}) {
   keyElement.className = classNameCSS(isRead ? " bold-read" : "");
   if (!btn) {
     btn = newElement("button", {id: btnId});
-    dt.append(btn);
+    dt.prepend(btn);
   }
   btn.className = isRead ? "toggle-btn" : "toggle-btn read";
   btn.innerHTML = isRead ? "◯" : "✔"; //isRead? "◯ Mark as unread": "✔ Mark as read";
