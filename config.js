@@ -14,7 +14,7 @@ const CONFIG = {
     },
     getUpdateStatus: (item, existingItems) => {
       const existing = existingItems.get(item.updateDate);
-      const readStatus = existing? undefined: UNREAD;
+      const readStatus = existing ? undefined : UNREAD;
       return {needsUpdate: !existing, readStatus};
     }
   },
@@ -26,15 +26,22 @@ const CONFIG = {
     classNameCSS: (keyBoldClass) => `item-title${keyBoldClass}`,
     getKey: (item) => item.title,
     getter: (dt) => {
-      const [titleElement, dateElement] = dt.children;
-      return {title: titleElement.textContent,
-              updateDate: new Date(dateElement.textContent.replace(/^\(|\)$/g, ""))};
+      const titleElement = dt.children[0];
+      const dateElement = dt.children[dt.children.length - 1];
+      const title = titleElement.textContent;
+      const updateDate = new Date(dateElement.textContent.replace(/^\(|\)$/g, ""));
+      if (!(dt.children.length === 2) || ! title || ! updateDate) {
+	console.error(`Error parsing ${dt.children}`);
+	for (const kk of dt.children) {console.log(kk)};
+	console.error(`${title} ${updateDate}`)
+      }
+      return {title, updateDate};
     },
     getUpdateStatus: (item, existingItems) => {
       const existing = existingItems.get(item.title);
       if (!existing || item.updateDate > existing.updateDate) {
         const readStatus = existing ? existing.readStatus : UNREAD;
-        return {needsUpdate: true, readStatus: readStatus};
+        return {needsUpdate: true, readStatus: UNREAD};
       }
       return {needsUpdate: false};
     }

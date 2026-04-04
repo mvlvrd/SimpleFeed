@@ -32,6 +32,11 @@ document.getElementById("resetBtn").addEventListener("click", async () => {
   showStatus("Reset completed");
 });
 
+document.getElementById("UpdateBtn").addEventListener("click", async () => {
+  await sendMessage("update");
+  showStatus("Updating...");
+});
+
 document.getElementById("openAllUrlsBtn").addEventListener("click", async () => {
   await sendMessage("openURL");
   showStatus("Opening all URLs...");

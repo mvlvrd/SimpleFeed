@@ -110,6 +110,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         reset()
           .then(() => sendResponse({success: true}));
         break;
+      case "update":
+        update()
+          .then(() => sendResponse({success: true}));
+        break;
       case "MarkAll":
         updateAllStatus(schemaName, message.mark)
           .then(() => sendResponse({success: true}));
