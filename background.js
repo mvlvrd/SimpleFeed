@@ -21,8 +21,8 @@ async function update() {
 }
 
 async function updateBadge() {
-  const unreadCounts = await Database.countAllUnreadItems();
-  const n_counts = Object.values(unreadCounts);
+  const notReadCounts = await Database.countAllNotReadItems();
+  const n_counts = Object.values(notReadCounts);
   if (n_counts.reduce((acc, val) => acc + val, 0) === 0) {
     browser.action.setBadgeText({text: ""});
     return;
@@ -33,7 +33,6 @@ async function updateBadge() {
 }
 
 async function updateAllStatus(schemaName, mark) {
-  console.log(schemaName, mark);
   try {
     await Database.updateAllStatus(schemaName, mark);
     updateUI(schemaName); //Is it ok to not await on this?
@@ -70,7 +69,7 @@ async function updateUI(schemaName) {
   updateBadge();
   //TODO: Can this be made in parallel for all tabs?
   const tabs = await getTabs(schemaName);
-  tabs.forEach((tabx) => { browser.tabs.sendMessage(tabx.id, {content: "db Updated"})});
+  tabs.forEach((_tab) => { browser.tabs.sendMessage(_tab.id, {content: "db Updated"})});
 }
 
 async function reset() {
@@ -155,6 +154,12 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 browser.runtime.onInstalled.addListener(async () => {
   await initialize();
   setPeriod(1440);
+});
+
+browser.runtime.onStartup.addListener(async () => {
+  // Reset the promise so initialize runs again
+  _init_promise = null;
+  await initialize();
 });
 
 await initialize();

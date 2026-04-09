@@ -61,7 +61,7 @@ export const Database = {
     getAllRequest.onsuccess = () => {
       const existingMap = new Map(getAllRequest.result.map(item => [getKey(item), item]));
       items.forEach(item => { const {needsUpdate, readStatus} = getUpdateStatus(item, existingMap);
-                              if (needsUpdate) { objectStore.put({...item, readStatus: readStatus}) };})
+                              if (needsUpdate) { objectStore.put({...item, readStatus: readStatus}) }})
     };
     getAllRequest.onerror = () => console.error(getAllRequest.error);
     return promise;
@@ -81,8 +81,8 @@ export const Database = {
     });
   },
 
-  async countAllUnreadItems() {
-    const range = IDBKeyRange.only(UNREAD);
+  async countAllNotReadItems() {
+    const range = IDBKeyRange.lowerBound(READ, true); //All not READ
     const allNames = schema.map(db => db.name);
     const transaction = this._db.transaction(allNames);
     const promises = allNames.map(schemaName =>
