@@ -13,14 +13,25 @@ function toggle(x) {
   }
 }
 
+function getSchema(location) {
+  switch (location.hostname) {
+  case "bactra.org":
+    return location.pathname.replace(/^\/+|\/+$/g, "");
+  case "coreyrobin.com":
+    return "CoreyRobin";
+  default:
+    console.error(`Wrong input to getSchema: ${location}`);
+  }
+}
+
 const CONFIG = {
   "weblog": {
     url: "https://bactra.org/weblog/",
     dtListSelector: ".blog:has(.date)",
-    elementSelector: "h2",
     getKey: (item) => item.updateDate,
     getter: (dt) => {
-      return {updateDate: dt.textContent.replace(/^\n|\n$/g, "")};
+      const dateElement = dt.querySelector(".date");
+      return {updateDate: dateElement.textContent.replace(/^\n|\n$/g, "")};
     },
     getUpdateStatus: (item, existingItems) => {
       const existing = existingItems.get(item.updateDate);
@@ -32,18 +43,12 @@ const CONFIG = {
   "notebooks": {
     url: "https://bactra.org/notebooks/",
     dtListSelector: "dt",
-    elementSelector: "a",
     getKey: (item) => item.title,
     getter: (dt) => {
-      const titleElement = dt.children[0];
-      const dateElement = dt.children[dt.children.length - 1];
+      const titleElement = dt.querySelector("a");
+      const dateElement = dt.querySelector("i");
       const title = titleElement.textContent;
       const updateDate = new Date(dateElement.textContent.replace(/^\(|\)$/g, ""));
-      if (!(dt.children.length === 2) || ! title || ! updateDate) {
-        console.error(`Error parsing ${dt.children}`);
-        for (const kk of dt.children) {console.log(kk)}
-        console.error(`${title} ${updateDate}`)
-      }
       return {title, updateDate};
     },
     getUpdateStatus: (item, existingItems) => {
@@ -59,6 +64,22 @@ const CONFIG = {
         return {needsUpdate: false};
         break;
       }
+    }
+  },
+
+  "CoreyRobin": {
+    url: "https://coreyrobin.com/",
+    dtListSelector: "article",
+    getKey: (item) => item.title,
+    getter: (dt) => {
+      const title = dt.querySelector("header > h2 > a").textContent.trim();
+      const updateDate = new Date(dt.querySelector(".dg__time").getAttribute("datetime"));
+      return {title, updateDate};
+    },
+    getUpdateStatus: (item, existingItems) => {
+      const existing = existingItems.get(item.title);
+      const readStatus = existing ? undefined : UNREAD;
+      return {needsUpdate: !existing, readStatus};
     }
   }
 }

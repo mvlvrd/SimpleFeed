@@ -1,19 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "notebooks",
-  "version": "1.7",
-  "description": "Replaces RSS",
+  "name": "SimpleFeed",
+  "version": "1.0",
+  "description": "A poor man's replacement of RSS.",
   "permissions": ["alarms", "menus", "notifications", "tabs"],
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "@addon-example1"
+      "id": "@addon-SimpleFeed"
     }
   },
 
   "host_permissions": [
-      "*://bactra.org/*"
+    "*://bactra.org/*",
+    "*://coreyrobin.com/*"
   ],
+
   "background": {
         "page": "background.xhtml"
   },
@@ -28,7 +30,12 @@
     "css": ["ui/notebooks.css"],  
     "js": ["config.js", "ui/content.js"],
     "run_at": "document_end"
-  }],
+    },{
+    "matches": ["https://coreyrobin.com/"],
+    "css": ["ui/notebooks.css"],
+    "js": ["config.js", "ui/content.js"],
+    "run_at": "document_end"}
+  ],
 
   "action": {
     "default_icon": {

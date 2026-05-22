@@ -1,26 +1,15 @@
-const schemaName = window.location.pathname.replace(/^\/+|\/+$/g, "");
-const {dtListSelector, elementSelector, getKey} = CONFIG[schemaName];
-const dtArray = Array.from(document.querySelectorAll(dtListSelector));
+const schemaName = getSchema(window.location);
+const {dtListSelector, getter, getKey} = CONFIG[schemaName];
 
-const newElement = (element, obj) => Object.assign(document.createElement(element), obj);
+const getKeyFromDt = (dt) => getKey(getter(dt));
 
-function renderItemReadPhase(dt, mark) {
-  const keyElement = dt.querySelector(elementSelector);
-  const key = keyElement.textContent;
-  if (!dt.id) {dt.id = key;}
+let key2btnMap;
+let ItemMap;
+
+function renderItem(key, mark) {
   const readStatus = (mark === undefined) ? ItemMap.get(key) : mark;
-  const btnId = `btn-${key}`;
-  const btn = document.getElementById(btnId);
-  return {dt, keyElement, readStatus, btnId, btn};
-}
+  const btn = key2btnMap.get(key);
 
-function renderItemWritePhase({dt, keyElement, readStatus, btnId, btn}) {
-  if (!btn) {
-    btn = newElement("button", {id: btnId});
-    dt.prepend(btn);
-  }
-
-  keyElement.classList.remove("status-read", "status-unread", "status-updated");
   switch (readStatus) {
   case (READ):
     btn.className = "toggle-btn read";
@@ -29,64 +18,64 @@ function renderItemWritePhase({dt, keyElement, readStatus, btnId, btn}) {
   case (UNREAD):
     btn.className = "toggle-btn unread";
     btn.innerHTML = "✔";
-    keyElement.classList.add("status-unread");
     break;
   case (UPDATED):
     btn.className = "toggle-btn updated";
     btn.innerHTML = "✔";
-    keyElement.classList.add("status-updated");
     break;
   }
 }
 
-function renderItems(dts, mark) {
-  const readRes = [];
-  for (const dt of dts) {
-    readRes.push(renderItemReadPhase(dt, mark));
+function renderItems() {
+  for (const key of key2btnMap.keys()) {
+    renderItem(key);
   }
-  for (const obj of readRes) { renderItemWritePhase(obj); }
 }
 
-function markRead(mark, dt) {
-  //TODO: Check for possible race condition with rollbacks over concurrent clicks.
-  const dts = dt? [dt] : dtArray;
-  const id = dt? dt.querySelector(elementSelector).textContent : undefined;
-  renderItems(dts, mark);
-  browser.runtime.sendMessage({content: "mark", schemaName, mark, id})
-    .then(() => { dts.forEach(dt => {ItemMap.set(dt.id, mark);}) })
-    .catch(error => {
-      console.error(`Error marking: ${error}`);
-      renderItems(dts, toggle(mark));
-    })
-}
-
-let ItemMap;
-
-async function refreshAndRender() {
-  const message = await browser.runtime.sendMessage({content: "updateUI", schemaName});
+async function refresh() {
+  const message = await browser.runtime.sendMessage({content: "updateFrontEnd", schemaName});
   if (message.error) {
-    console.error(`Error refreshing UI ${message.error}`);
+    console.error(`Error in "updateFrontEnd" ${message.error}`);
     return;
   }
   ItemMap = new Map(message.items.map(item => [getKey(item), item.readStatus]));
-  renderItems(dtArray);
 }
 
 (async () => {
-  await refreshAndRender();
-})();
- 
-document.body.addEventListener("click", (event) => {
-  const button = event.target.closest("button.toggle-btn, button.read");
-  const key = button?.id.substring(4);
-  if (!key || !ItemMap) return;
-  event.stopPropagation();
-  const newStatus = toggle(ItemMap.get(key));
-  markRead(newStatus, document.getElementById(key));
-});
+  await refresh();
+  const dtArray = Array.from(document.querySelectorAll(dtListSelector));
+  key2btnMap = new Map(dtArray.map((dt) => {
+    const key = getKeyFromDt(dt);
+    const btnId = `btn-${key}`;
+    const btn = Object.assign(document.createElement("button"), {id: btnId});
+    dt.prepend(btn);
+    return [key, btn];
+  }));
+  renderItems();
 
-browser.runtime.onMessage.addListener((message) => {
-  if (message.content === "db Updated") {
-    refreshAndRender();
-  }
-});
+  document.body.addEventListener("click", (event) => {
+    const button = event.target.closest("button.toggle-btn");
+    const key = button?.id.substring(4);
+    if (!key) return;
+    event.stopPropagation();
+    const mark = toggle(ItemMap.get(key));
+
+    //TODO: Check for possible race condition with rollbacks over concurrent clicks.
+    renderItem(key, mark);
+    browser.runtime.sendMessage({content: "mark", schemaName, mark, key})
+      .then(() => {
+        ItemMap.set(key, mark);
+      })
+      .catch(error => {
+        console.error(`Error marking: ${error}`);
+        renderItem(key, toggle(mark));
+      })
+  });
+
+  browser.runtime.onMessage.addListener((message) => {
+    if (message.content === "db Updated") {
+      refresh().then(() => {renderItems();})
+    }
+  });
+
+})();

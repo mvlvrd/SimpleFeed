@@ -130,15 +130,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "getAlarmPeriod":
         sendResponse({alarmPeriod: getPeriod()});
         break;
-      case "updateUI":
-        console.log("updateUI-listened");
+      case "updateFrontEnd":
+        console.log("updateFrontEnd-listened");
         Database.fetchItems(schemaName)
           .then((items) => {
             sendResponse({items});})
         break;
       case "mark":
         console.log("mark-listened");
-        Database.updateStatus(schemaName, message.mark, message.id)
+        Database.updateStatus(schemaName, message.mark, message.key)
           .then(() => {
             updateBadge();
             sendResponse({success: true});})

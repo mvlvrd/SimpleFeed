@@ -1,11 +1,12 @@
 import {fetchAndParse} from "../utils.js";
 
 const _dbName = "notebooksDB";
-const _dbVersion = 2;
+const _dbVersion = 1;
 
-const schemas = {1: [{name:"notebooks", keyOptions:{keyPath: "title"}}],
-                 2: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
-                     {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"}]};
+const schemas = {1: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
+                     {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"},
+                     {name:"CoreyRobin", keyOptions:{keyPath: "title"}, idx:"readStatus"}
+                    ]};
 const schema = schemas[_dbVersion];
 
 export const Database = {
@@ -17,11 +18,26 @@ export const Database = {
     const request = indexedDB.open(_dbName, dbVersion);
     this._db = await new Promise((resolve, reject) => {
       request.onupgradeneeded = (event) => {
-        //TODO: Check the logic here is robust.
         const db = event.target.result;
+        //TODO: Check the logic here is robust.
+        //Delete deprecated Object Stores
+        const newNames = schema.map(({name}) => name);
+        const existingNames = db.objectStoreNames;
+        const n = existingNames.length;
+        for (let i=0; i<n; i++) {
+          const existingName = existingNames.item(i);
+          if (!newNames.includes(existingName)) {
+            db.deleteObjectStore(existingName);
+          }
+        }
+        //Create new Object Stores
+	let newExistingNames = db.objectStoreNames;
         schema.forEach(({name, keyOptions, idx}) => {
-          db.createObjectStore(name, keyOptions)
-            .createIndex(idx, idx, { unique: false });});
+          if (! newExistingNames.contains(name)) {
+            db.createObjectStore(name, keyOptions)
+              .createIndex(idx, idx, { unique: false });}
+          });
+
       };
 
       request.onerror = () => {
@@ -82,7 +98,8 @@ export const Database = {
   },
 
   async countAllNotReadItems() {
-    const range = IDBKeyRange.lowerBound(READ, true); //All not READ
+    //TODO: Check that READ is defined
+    const range = IDBKeyRange.lowerBound(READ, true);
     const allNames = schema.map(db => db.name);
     const transaction = this._db.transaction(allNames);
     const promises = allNames.map(schemaName =>
@@ -107,7 +124,8 @@ export const Database = {
     const promise = this._transactionPromise(transaction);
     const objectStore = transaction.objectStore(schemaName);
 
-    const getAllRequest = objectStore.index("readStatus").getAll(toggle(mark));
+    //TODO: Make it getAll(toggle(mark)) for efficiency
+    const getAllRequest = objectStore.index("readStatus").getAll();
     getAllRequest.onsuccess = () => {
       getAllRequest.result.forEach(item => {
         objectStore.put({...item, readStatus: mark});
