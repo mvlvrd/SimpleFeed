@@ -24,13 +24,15 @@ function getSchema(location) {
   }
 }
 
+const SchemaVersion = 1;
+
 const CONFIG = {
   "weblog": {
     url: "https://bactra.org/weblog/",
-    dtListSelector: ".blog:has(.date)",
-    getKey: (item) => item.updateDate,
-    getter: (dt) => {
-      const dateElement = dt.querySelector(".date");
+    elListSelector: ".blog:has(.date)",
+    keyPath: "updateDate",
+    getter: (el) => {
+      const dateElement = el.querySelector(".date");
       return {updateDate: dateElement.textContent.replace(/^\n|\n$/g, "")};
     },
     getUpdateStatus: (item, existingItems) => {
@@ -42,11 +44,11 @@ const CONFIG = {
 
   "notebooks": {
     url: "https://bactra.org/notebooks/",
-    dtListSelector: "dt",
-    getKey: (item) => item.title,
-    getter: (dt) => {
-      const titleElement = dt.querySelector("a");
-      const dateElement = dt.querySelector("i");
+    elListSelector: "dt",
+    keyPath: "title",
+    getter: (el) => {
+      const titleElement = el.querySelector("a");
+      const dateElement = el.querySelector("i");
       const title = titleElement.textContent;
       const updateDate = new Date(dateElement.textContent.replace(/^\(|\)$/g, ""));
       return {title, updateDate};
@@ -56,24 +58,21 @@ const CONFIG = {
       switch (true) {
       case (!existing):
         return {needsUpdate: true, readStatus: UNREAD};
-        break;
       case (item.updateDate > existing.updateDate):
         return {needsUpdate: true, readStatus: UPDATED};
-        break;
       default:
         return {needsUpdate: false};
-        break;
       }
     }
   },
 
   "CoreyRobin": {
     url: "https://coreyrobin.com/",
-    dtListSelector: "article",
-    getKey: (item) => item.title,
-    getter: (dt) => {
-      const title = dt.querySelector("header > h2 > a").textContent.trim();
-      const updateDate = new Date(dt.querySelector(".dg__time").getAttribute("datetime"));
+    elListSelector: "article",
+    keyPath: "title",
+    getter: (el) => {
+      const title = el.querySelector("header > h2 > a").textContent.trim();
+      const updateDate = new Date(el.querySelector(".dg__time").getAttribute("datetime"));
       return {title, updateDate};
     },
     getUpdateStatus: (item, existingItems) => {

@@ -1,18 +1,23 @@
 import {fetchAndParse} from "../utils.js";
 
-const _dbName = "notebooksDB";
-const _dbVersion = 1;
+const _dbName = "simpleFeedDB";
 
-const schemas = {1: [{name:"notebooks", keyOptions:{keyPath: "title"}, idx:"readStatus"},
-                     {name:"weblog", keyOptions:{keyPath: "updateDate"}, idx:"readStatus"},
-                     {name:"CoreyRobin", keyOptions:{keyPath: "title"}, idx:"readStatus"}
-                    ]};
-const schema = schemas[_dbVersion];
+function generateSchemaFromConfig() {
+  return Object.entries(CONFIG).map(([name, site]) => {
+    return {
+      name: name,
+      keyOptions: { keyPath: site.keyPath },
+      idx: "readStatus"
+    };
+  });
+}
+
+const schema = generateSchemaFromConfig();
 
 export const Database = {
   _db: undefined,
 
-  async init(dbVersion = _dbVersion) {
+  async init(dbVersion = SchemaVersion) {
     if (this._db) return;
     console.log("Initialize DB");
     const request = indexedDB.open(_dbName, dbVersion);
@@ -21,7 +26,7 @@ export const Database = {
         const db = event.target.result;
         //TODO: Check the logic here is robust.
         //Delete deprecated Object Stores
-        const newNames = schema.map(({name}) => name);
+        const newNames = schema.map((x) => x.name);
         const existingNames = db.objectStoreNames;
         const n = existingNames.length;
         for (let i=0; i<n; i++) {
@@ -31,7 +36,7 @@ export const Database = {
           }
         }
         //Create new Object Stores
-	let newExistingNames = db.objectStoreNames;
+        let newExistingNames = db.objectStoreNames;
         schema.forEach(({name, keyOptions, idx}) => {
           if (! newExistingNames.contains(name)) {
             db.createObjectStore(name, keyOptions)
@@ -52,7 +57,7 @@ export const Database = {
   },
 
   async clear() {
-    const schemaNames = schema.map((item) => item.name);
+    const schemaNames = schema.map((x) => x.name);
     const transaction = this._db.transaction(schemaNames, "readwrite");
     const promise = this._transactionPromise(transaction);
     schemaNames.forEach((name) => transaction.objectStore(name).clear());
@@ -70,7 +75,7 @@ export const Database = {
     const promise = this._transactionPromise(transaction);
     const objectStore = transaction.objectStore(schemaName);
 
-    const getKey = CONFIG[schemaName].getKey;
+    const getKey = (item) => item[CONFIG[schemaName].keyPath];
     const getUpdateStatus = CONFIG[schemaName].getUpdateStatus;
 
     const getAllRequest = objectStore.getAll();
@@ -116,7 +121,7 @@ export const Database = {
 
   async updateAllStatus(schemaName, mark) {
     if (!schemaName) {
-      const promises = schema.map((obj) => this.updateAllStatus(obj.name, mark));
+      const promises = schema.map((x) => this.updateAllStatus(x.name, mark));
       return Promise.all(promises);
     }
 

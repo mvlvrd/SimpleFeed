@@ -1,7 +1,7 @@
 const schemaName = getSchema(window.location);
-const {dtListSelector, getter, getKey} = CONFIG[schemaName];
+const {elListSelector, getter, keyPath} = CONFIG[schemaName];
 
-const getKeyFromDt = (dt) => getKey(getter(dt));
+const getKeyFromEl = (el) => getter(el)[keyPath];
 
 let key2btnMap;
 let ItemMap;
@@ -38,17 +38,17 @@ async function refresh() {
     console.error(`Error in "updateFrontEnd" ${message.error}`);
     return;
   }
-  ItemMap = new Map(message.items.map(item => [getKey(item), item.readStatus]));
+  ItemMap = new Map(message.items.map(item => [item[keyPath], item.readStatus]));
 }
 
 (async () => {
   await refresh();
-  const dtArray = Array.from(document.querySelectorAll(dtListSelector));
-  key2btnMap = new Map(dtArray.map((dt) => {
-    const key = getKeyFromDt(dt);
+  const elArray = Array.from(document.querySelectorAll(elListSelector));
+  key2btnMap = new Map(elArray.map((el) => {
+    const key = getKeyFromEl(el);
     const btnId = `btn-${key}`;
     const btn = Object.assign(document.createElement("button"), {id: btnId});
-    dt.prepend(btn);
+    el.prepend(btn);
     return [key, btn];
   }));
   renderItems();

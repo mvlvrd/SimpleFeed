@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "devDependencies": {
+    "@eslint/css": "^1.3.0",
+    "@eslint/js": "^10.0.1",
+    "@eslint/json": "^2.0.0",
+    "@eslint/markdown": "^8.0.2",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "web-ext": "^10.0.0"
+  },
+  "scripts": {
+    "eslint": "eslint . --ext .json --ext .js",
+    "build": "node createManifest.js && web-ext lint --ignore-files '*~' && web-ext build --overwrite-dest"
+  }
+}
