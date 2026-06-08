@@ -1,13 +1,14 @@
-const schemaName = getSchema(window.location);
-const {elListSelector, getter, keyPath} = CONFIG[schemaName];
+import {toggle, getConfig, READ, UNREAD, UPDATED} from "../config.js";
+
+const {schemaName, config: {elListSelector, getter, keyPath}} = getConfig(window.location);
 
 const getKeyFromEl = (el) => getter(el)[keyPath];
 
 let key2btnMap;
 let ItemMap;
 
-function renderItem(key, mark) {
-  const readStatus = (mark === undefined) ? ItemMap.get(key) : mark;
+function renderItem(key) {
+  const readStatus = ItemMap.get(key);
   const btn = key2btnMap.get(key);
 
   switch (readStatus) {
@@ -46,35 +47,34 @@ async function refresh() {
   const elArray = Array.from(document.querySelectorAll(elListSelector));
   key2btnMap = new Map(elArray.map((el) => {
     const key = getKeyFromEl(el);
-    const btnId = `btn-${key}`;
-    const btn = Object.assign(document.createElement("button"), {id: btnId});
+    const btn = Object.assign(document.createElement("button"), {className: "toggle-btn"});
+    btn.dataset.key = key;
     el.prepend(btn);
     return [key, btn];
   }));
   renderItems();
 
   document.body.addEventListener("click", (event) => {
+    //TODO: Check for possible race condition with rollbacks over concurrent clicks.
     const button = event.target.closest("button.toggle-btn");
-    const key = button?.id.substring(4);
+    const key = button?.dataset.key;
     if (!key) return;
     event.stopPropagation();
-    const mark = toggle(ItemMap.get(key));
-
-    //TODO: Check for possible race condition with rollbacks over concurrent clicks.
-    renderItem(key, mark);
+    const oldMark = ItemMap.get(key);
+    const mark = toggle(oldMark);
+    ItemMap.set(key, mark);
+    renderItem(key);
     browser.runtime.sendMessage({content: "mark", schemaName, mark, key})
-      .then(() => {
-        ItemMap.set(key, mark);
-      })
       .catch(error => {
+        ItemMap.set(key, oldMark);
+        renderItem(key);
         console.error(`Error marking: ${error}`);
-        renderItem(key, toggle(mark));
-      })
+      });
   });
 
   browser.runtime.onMessage.addListener((message) => {
     if (message.content === "db Updated") {
-      refresh().then(() => {renderItems();})
+      refresh().then(renderItems).catch(console.error);
     }
   });
 

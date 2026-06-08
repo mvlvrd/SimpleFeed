@@ -1,9 +1,6 @@
-const fs = require('fs');
-const util = require('util');
-const vm = require('vm');
-const { execSync } = require('child_process');
-
-vm.runInThisContext(fs.readFileSync("./config.js", "utf8"));
+import fs from 'fs';
+import { execSync } from 'child_process';
+const { CONFIGS } = await import("./src/config.ts");
 
 const n_commits = execSync('"git" rev-list --count HEAD', {encoding:'utf8'}).trim();
 
@@ -35,7 +32,7 @@ const template = {
   "content_scripts": [{
     "matches": undefined,
     "css": ["ui/content.css"],
-    "js": ["config.js", "ui/content.js"],
+    "js": ["ui/content.js"],
     "run_at": "document_end"
     }],
 
@@ -46,16 +43,16 @@ const template = {
     "default_title": "SimpleFeed",
     "default_popup": "popup/settings.html"
   }
-}
+};
 
 const content_script_tmplt = template.content_scripts[0];
 
-const urls = Object.values(CONFIG).map((obj) => obj.url);
+const urls = Object.values(CONFIGS).map((obj) => obj.url);
 const host_permissions = urls;
-const content_scripts = urls.map((url) => {return {... content_script_tmplt, matches: [url]}});
+const content_scripts = urls.map((url) => {return {... content_script_tmplt, matches: [url]};});
 const version = `1.0.0.${n_commits}`;
 const newManifest = Object.assign(structuredClone(template), {host_permissions}, {content_scripts}, {version});
-if (!util.isDeepStrictEqual(newManifest, template)) {
-  const maniStr = JSON.stringify(newManifest, null, 2);
-  fs.writeFile("manifest.json", maniStr, err => { if (err) { console.error(err) } });
-}
+const maniStr = JSON.stringify(newManifest, null, 2);
+
+if (!fs.existsSync("dist/")) { fs.mkdirSync("dist/"); }
+fs.writeFile("dist/manifest.json", maniStr, err => { if (err) { console.error(err); }});

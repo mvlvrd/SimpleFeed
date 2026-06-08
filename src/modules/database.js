@@ -1,9 +1,9 @@
-import {fetchAndParse} from "../utils.js";
+import {CONFIGS, SchemaVersion, READ} from "../config.js";
 
 const _dbName = "simpleFeedDB";
 
 function generateSchemaFromConfig() {
-  return Object.entries(CONFIG).map(([name, site]) => {
+  return Object.entries(CONFIGS).map(([name, site]) => {
     return {
       name: name,
       keyOptions: { keyPath: site.keyPath },
@@ -13,6 +13,31 @@ function generateSchemaFromConfig() {
 }
 
 const schema = generateSchemaFromConfig();
+
+async function fetchAndParse(schemaName) {
+  const {url, elListSelector, getter} = CONFIGS[schemaName];
+  return fetch(url)
+    .then((response) => {
+      if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+      return response.text();})
+    .then((text) => {
+      const parser = new DOMParser();
+      const els = parser
+            .parseFromString(text, "text/html")
+            .querySelectorAll(elListSelector);
+      return Array.from(els).map((el) => getter(el));
+    })
+    .catch((error) => {
+      console.error("Fetch failed:", error);
+      browser.notifications.create({
+        type: "basic",
+        iconUrl: "icons/rss.png",
+        title: `Fetch ${url} failed`,
+        message: error.message
+      });
+      throw error;
+    });
+}
 
 export const Database = {
   _db: undefined,
@@ -75,16 +100,19 @@ export const Database = {
     const promise = this._transactionPromise(transaction);
     const objectStore = transaction.objectStore(schemaName);
 
-    const getKey = (item) => item[CONFIG[schemaName].keyPath];
-    const getUpdateStatus = CONFIG[schemaName].getUpdateStatus;
+    const getKey = (item) => item[CONFIGS[schemaName].keyPath];
+    const getUpdateStatus = CONFIGS[schemaName].getUpdateStatus;
 
     const getAllRequest = objectStore.getAll();
     getAllRequest.onsuccess = () => {
       const existingMap = new Map(getAllRequest.result.map(item => [getKey(item), item]));
       items.forEach(item => { const {needsUpdate, readStatus} = getUpdateStatus(item, existingMap);
-                              if (needsUpdate) { objectStore.put({...item, readStatus: readStatus}) }})
+                              if (needsUpdate) { objectStore.put({...item, readStatus: readStatus});}});
     };
-    getAllRequest.onerror = () => console.error(getAllRequest.error);
+    getAllRequest.onerror = () => {
+      console.error(getAllRequest.error);
+      transaction.abort();
+    };
     return promise;
   },
 
@@ -97,8 +125,8 @@ export const Database = {
 
   _transactionPromise(transaction) {
     return new Promise((resolve, reject) => {
-      transaction.oncomplete = () => {resolve()};
-      transaction.onerror = (event) => {reject(event.error)};
+      transaction.oncomplete = () => {resolve();};
+      transaction.onerror = (event) => {reject(event.error);};
     });
   },
 
@@ -140,7 +168,7 @@ export const Database = {
   },
 
   async updateStatus(schemaName, mark, id) {
-    if (!id) {return this.updateAllStatus(schemaName, mark);}
+    if (id === undefined || id === null) {return this.updateAllStatus(schemaName, mark);}
 
     const transaction = this._db.transaction([schemaName], "readwrite");
     const promise = this._transactionPromise(transaction);
@@ -152,4 +180,4 @@ export const Database = {
     };
     return promise;
   }
-}
+};

@@ -1,10 +1,12 @@
+import { CONFIGS, READ, UNREAD } from "../config.js";
+
 const selector = document.getElementById("schemas");
 
 const newElement = (element, obj) => Object.assign(document.createElement(element), obj);
 
 async function loadSchemas() {
   selector.appendChild(newElement("option", {value: "", textContent: "all"}));
-  for (const schemaName of Object.keys(CONFIG)) {
+  for (const schemaName of Object.keys(CONFIGS)) {
     selector.appendChild(newElement("option", {value: schemaName, textContent: schemaName}));
   }
 }
@@ -21,7 +23,7 @@ async function markAllSchemas(mark) {
   const schemaName = selector.value || undefined;
   console.log(schemaName);
   await sendMessage("MarkAll", { schemaName, mark });
-  showStatus(`Marked ALL schemas as ${mark === 1 ? "read" : "unread"}`);
+  showStatus(`Marked ALL schemas as ${mark === READ ? "read" : "unread"}`);
 }
 
 document.getElementById("markAllReadBtn").addEventListener("click", () => markAllSchemas(READ));

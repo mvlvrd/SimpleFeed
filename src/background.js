@@ -1,5 +1,6 @@
+import {CONFIGS} from "./config.js";
 import {Database} from "./modules/database.js";
-const schemas = Object.values(CONFIG);
+const schemas = Object.values(CONFIGS);
 
 const storage = window.localStorage;
 function getPeriod() {
@@ -35,7 +36,7 @@ async function updateBadge() {
 async function updateAllStatus(schemaName, mark) {
   try {
     await Database.updateAllStatus(schemaName, mark);
-    updateUI(schemaName); //Is it ok to not await on this?
+    await updateUI(schemaName);
   } catch(e) {
     console.error(`Error marking all as read for ${schemaName}: ${e}`);
   }
@@ -60,7 +61,7 @@ function initialize() {
 }
 
 async function getTabs(schemaName) {
-  const urls = schemaName? [CONFIG[schemaName].url] : schemas.map((v) => v.url);
+  const urls = schemaName? [CONFIGS[schemaName].url] : schemas.map((v) => v.url);
   const tabs = await Promise.all(urls.map((url) => browser.tabs.query({url})));
   return tabs.flat();
 }
@@ -69,7 +70,7 @@ async function updateUI(schemaName) {
   updateBadge();
   //TODO: Can this be made in parallel for all tabs?
   const tabs = await getTabs(schemaName);
-  tabs.forEach((_tab) => { browser.tabs.sendMessage(_tab.id, {content: "db Updated"})});
+  tabs.forEach((_tab) => browser.tabs.sendMessage(_tab.id, {content: "db Updated"}));
 }
 
 async function reset() {
@@ -86,7 +87,7 @@ async function reset() {
 
 browser.alarms.onAlarm.addListener((alarmInfo) => {
     console.log(`Alarm ${alarmInfo.name} fired.`);
-    if (alarmInfo.name === "reparse") { update(); }
+  if (alarmInfo.name === "reparse") { update(); } //TODO: Deal with Promise rejection case.
 });
 
 async function openURL(url) {
@@ -134,14 +135,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("updateFrontEnd-listened");
         Database.fetchItems(schemaName)
           .then((items) => {
-            sendResponse({items});})
+            sendResponse({items});});
         break;
       case "mark":
         console.log("mark-listened");
         Database.updateStatus(schemaName, message.mark, message.key)
           .then(() => {
             updateBadge();
-            sendResponse({success: true});})
+            sendResponse({success: true});});
         break;
       default:
         throw new Error(`Unknown message received: ${message}`);
@@ -161,5 +162,4 @@ browser.runtime.onStartup.addListener(async () => {
   _init_promise = null;
   await initialize();
 });
-
 await initialize();
