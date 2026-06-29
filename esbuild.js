@@ -5,16 +5,12 @@ const common = {
   bundle: true,
   sourcemap: true,
   target: "firefox128",
-  format: "esm"
+  format: "esm",
 };
 
 await esbuild.build({
   ...common,
-  entryPoints: [
-    "src/background.js",
-    "src/popup/popup.js",
-    "src/ui/content.js",
-  ],
+  entryPoints: ["src/background.js", "src/popup/popup.js", "src/ui/content.js"],
   outdir: "dist",
   outbase: "src",
 });
@@ -29,7 +25,7 @@ const assets = [
   "src/popup/settings.html",
   "src/popup/popup.css",
   "src/ui/content.css",
-  "src/icons/rss.png"
+  "src/icons/rss.png",
 ];
 
 assets.forEach((src) => cpSync(src, src.replace(/^src\//, "dist/")));

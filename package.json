@@ -6,6 +6,7 @@
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^2.0.0",
     "@eslint/markdown": "^8.0.2",
+    "@types/firefox-webext-browser": "^143.0.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
@@ -13,9 +14,13 @@
     "web-ext": "^10.0.0"
   },
   "scripts": {
+    "prettier": "prettier src/**/*.{js,ts} src/*.{js,ts} esbuild.js {package,tsconfig}.json createManifest.mjs --write",
     "eslint": "eslint",
     "typecheck": "tsc",
     "esbuild": "node esbuild.js",
-    "build": "npm run eslint && npm run typecheck && node createManifest.mjs && npm run esbuild && web-ext lint --source-dir=dist/ --ignore-files '*~' && web-ext build --overwrite-dest --source-dir=dist/"
+    "build": "npm run prettier && npm run eslint && npm run typecheck && node createManifest.mjs && npm run esbuild && web-ext lint --source-dir=dist/ --ignore-files '*~' && web-ext build --overwrite-dest --source-dir=dist/"
+  },
+  "dependencies": {
+    "prettier": "^3.8.4"
   }
 }

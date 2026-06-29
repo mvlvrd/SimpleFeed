@@ -1,25 +1,10 @@
-type ConfigItemTypes = {
-  weblog: {updateDate:string},
-  notebooks: {updateDate:Date, title:string},
-  coreyrobin: {updateDate:Date, title:string}
-}
-interface cfgEntry<K> {
-  url: string,
-  elListSelector: string,
-  keyPath: string,
-  getter: (el: HTMLElement) => K,
-  getUpdateStatus: (item: K, existingItems: Map<string, K>) => {needsUpdate: boolean, readStatus?: number}
-}
-type schemaType = keyof ConfigItemTypes;
-type CFG = {
-  [K in schemaType]: cfgEntry<ConfigItemTypes[K]>;
-}
+//Status related
+const READ = 0 as const;
+const UNREAD = 1 as const;
+const UPDATED = 2 as const;
+type Status = typeof READ | typeof UNREAD | typeof UPDATED;
 
-export {CONFIGS, toggle, getConfig, READ, UNREAD, UPDATED, SchemaVersion};
-
-const [READ, UNREAD, UPDATED] = [0, 1, 2] as const;
-
-function toggle(x: number): number|undefined {
+function toggle(x: Status): Status {
   switch (x) {
     case READ:
       return UNREAD;
@@ -27,87 +12,150 @@ function toggle(x: number): number|undefined {
       return READ;
     case UPDATED:
       return READ;
-    default:
-      console.error(`Wrong input to toggle: ${x}`);
   }
 }
 
+//Schema related
+
+type ConfigItemTypes = {
+  weblog: { updateDate: string };
+  notebooks: { updateDate: string; title: string };
+  coreyrobin: { updateDate: string; title: string };
+};
+type schemaType = keyof ConfigItemTypes;
+
+type DBItem<K extends schemaType> = ConfigItemTypes[K] & { readStatus: Status };
+
+type Updater<K extends schemaType> = (
+  item: ConfigItemTypes[K],
+  existingItems: Map<string, ConfigItemTypes[K]>,
+) => { needsUpdate: boolean; readStatus?: Status };
+
+interface cfgEntry<K extends schemaType> {
+  url: string;
+  elListSelector: string;
+  keyPath: keyof ConfigItemTypes[K];
+  getter: (el: HTMLElement) => ConfigItemTypes[K];
+  getUpdateStatus: Updater<K>;
+}
+
+type CFG = {
+  [K in schemaType]: cfgEntry<K>;
+};
+
+//Schema configs
 const SchemaVersion = 1;
 
 const CONFIGS: CFG = {
-  "weblog": {
+  weblog: {
     url: "https://bactra.org/weblog/",
     elListSelector: ".blog:has(.date)",
     keyPath: "updateDate",
     getter: (el) => {
-      const dateElement = el.querySelector(".date");
-      const updateDate = dateElement?.textContent.replace(/^\(|\)$/g, "");
-      if (!updateDate) {throw new Error(`Element ${el} has no valid dateInput.`);}
-      return {updateDate};
+      const dateInput = el
+        .querySelector(".date")
+        ?.textContent.replace(/^\(|\)$/g, "");
+      if (!dateInput) {
+        throw new Error(`Element ${el} has no valid dateInput.`);
+      }
+      return { updateDate: new Date(dateInput).toISOString() };
     },
     getUpdateStatus: (item, existingItems) => {
-      const existing = existingItems.get(item.updateDate);
+      const existing = existingItems.get(item["updateDate"]);
       const readStatus = existing ? undefined : UNREAD;
-      return {needsUpdate: !existing, readStatus};
-    }
+      return { needsUpdate: !existing, readStatus };
+    },
   },
 
-  "notebooks": {
+  notebooks: {
     url: "https://bactra.org/notebooks/",
     elListSelector: "dt",
     keyPath: "title",
     getter: (el) => {
-      const titleElement = el.querySelector("a");
-      const dateElement = el.querySelector("i");
-      const title = titleElement?.textContent;
-      if (!title) {throw new Error(`Element ${el} has no valid title.`);}
-      const dateInput = dateElement?.textContent.replace(/^\(|\)$/g, "");
-      if (!dateInput) {throw new Error(`Element ${el} has no valid dateInput.`);}
-      const updateDate = new Date(dateInput);
-      return {title, updateDate};
+      const title = el.querySelector("a")?.textContent;
+      if (!title) {
+        throw new Error(`Element ${el} has no valid title.`);
+      }
+      const dateInput = el
+        .querySelector("i")
+        ?.textContent.replace(/^\(|\)$/g, "");
+      if (!dateInput) {
+        throw new Error(`Element ${el} has no valid dateInput.`);
+      }
+      return { title, updateDate: new Date(dateInput).toISOString() };
     },
-    getUpdateStatus: (item, existingItems) => {
+    getUpdateStatus: (
+      item: ConfigItemTypes["notebooks"],
+      existingItems: Map<string, ConfigItemTypes["notebooks"]>,
+    ) => {
       const existing = existingItems.get(item.title);
       if (!existing) {
-        return {needsUpdate: true, readStatus: UNREAD};
-      } else if (item.updateDate > existing?.updateDate) {
-        return {needsUpdate: true, readStatus: UPDATED};
+        return { needsUpdate: true, readStatus: UNREAD };
+      } else if (item.updateDate > existing.updateDate) {
+        return { needsUpdate: true, readStatus: UPDATED };
       }
-      return {needsUpdate: false};
-    }
+      return { needsUpdate: false };
+    },
   },
 
-  "coreyrobin": {
+  coreyrobin: {
     url: "https://coreyrobin.com/",
     elListSelector: "article",
     keyPath: "title",
     getter: (el) => {
       const title = el?.querySelector("header > h2 > a")?.textContent?.trim();
-      if (!title) {throw new Error(`Element ${el} has no valid title.`);}
-      const dateInput = el?.querySelector(".dg__time")?.getAttribute("datetime");
-      if (!dateInput) {throw new Error(`Element ${el} has no valid dateInput.`);}
-      const updateDate = new Date(dateInput);
-      return {title, updateDate};
+      if (!title) {
+        throw new Error(`Element ${el} has no valid title.`);
+      }
+      const dateInput = el
+        ?.querySelector(".dg__time")
+        ?.getAttribute("datetime");
+      if (!dateInput) {
+        throw new Error(`Element ${el} has no valid dateInput.`);
+      }
+      return { title, updateDate: new Date(dateInput).toISOString() };
     },
     getUpdateStatus: (item, existingItems) => {
-      const existing = existingItems.get(item.title);
+      const existing = existingItems.get(item["title"]);
       const readStatus = existing ? undefined : UNREAD;
-      return {needsUpdate: !existing, readStatus};
-    }
-  }
+      return { needsUpdate: !existing, readStatus };
+    },
+  },
 };
 
-function getConfig(location: Location): {schemaName: schemaType, config: cfgEntry<ConfigItemTypes[schemaType]>} {
+const SchemaNames = Object.keys(CONFIGS) as schemaType[];
+
+function getConfig<K extends schemaType>(
+  location: Location,
+): {
+  schemaName: K;
+  config: cfgEntry<K>;
+} {
   let schemaName;
   switch (location.hostname) {
     case "bactra.org":
-      schemaName = location.pathname.replace(/^\/+|\/+$/g, "") as schemaType;
+      schemaName = location.pathname.replace(/^\/+|\/+$/g, "") as K;
       break;
     case "coreyrobin.com":
-      schemaName = "coreyrobin" as schemaType;
+      schemaName = "coreyrobin" as K;
       break;
     default:
       throw new Error(`The current url: ${location} is not accepted`);
   }
-  return {schemaName, config: CONFIGS[schemaName] as cfgEntry<ConfigItemTypes[schemaType]>};
+  return {
+    schemaName,
+    config: CONFIGS[schemaName],
+  };
 }
+
+export {
+  CONFIGS,
+  toggle,
+  getConfig,
+  READ,
+  UNREAD,
+  UPDATED,
+  SchemaVersion,
+  SchemaNames,
+};
+export type { Status, schemaType, ConfigItemTypes, DBItem };
